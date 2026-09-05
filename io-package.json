@@ -1,8 +1,21 @@
 {
     "common": {
         "name": "easee",
-        "version": "1.0.11",
+        "version": "1.0.12",
         "news": {
+            "1.0.12": {
+                "en": "Fixed a crash of the SignalR connection caused by a bug in an internal cookie-handling dependency under Node.js 18+",
+                "de": "Absturz der SignalR-Verbindung behoben, verursacht durch einen Fehler in einer internen Cookie-Abhängigkeit unter Node.js 18+",
+                "ru": "Исправлен сбой соединения SignalR, вызванный ошибкой во внутренней зависимости обработки cookie в Node.js 18+",
+                "pt": "Corrigida uma falha na conexão SignalR causada por um bug em uma dependência interna de manipulação de cookies no Node.js 18+",
+                "nl": "Crash van de SignalR-verbinding opgelost, veroorzaakt door een bug in een interne cookie-afhandelingsafhankelijkheid onder Node.js 18+",
+                "fr": "Correction d'un plantage de la connexion SignalR causé par un bug dans une dépendance interne de gestion des cookies sous Node.js 18+",
+                "it": "Risolto un arresto anomalo della connessione SignalR causato da un bug in una dipendenza interna per la gestione dei cookie su Node.js 18+",
+                "es": "Se corrigió un fallo en la conexión SignalR causado por un error en una dependencia interna de manejo de cookies en Node.js 18+",
+                "pl": "Naprawiono awarię połączenia SignalR spowodowaną błędem w wewnętrznej zależności obsługi plików cookie w Node.js 18+",
+                "uk": "Виправлено збій з'єднання SignalR, спричинений помилкою у внутрішній залежності обробки cookie в Node.js 18+",
+                "zh-cn": "修复了因 Node.js 18+ 下内部 cookie 处理依赖项中的错误导致的 SignalR 连接崩溃"
+            },
             "1.0.11": {
                 "en": "API errors no longer stop polling permanently: failed requests are now retried automatically with exponential backoff",
                 "de": "API-Fehler stoppen das Polling nicht mehr dauerhaft: fehlgeschlagene Anfragen werden jetzt automatisch mit exponentiellem Backoff wiederholt",
