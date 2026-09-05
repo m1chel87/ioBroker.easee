@@ -18,6 +18,10 @@ const minPollTimeEnergy = 120;
 let roundCounter = 0;
 const arrCharger = [];
 
+//Retry-/Backoff-Einstellungen für die API-Polling-Funktionen
+const RETRY_BASE_DELAY_MS = 30000; // Start-Backoff ca. 30s
+const RETRY_MAX_DELAY_MS = 5 * 60 * 1000; // Cap bei 5 Minuten
+
 //Variable für dynamicCircuitCurrentPX
 let dynamicCircuitCurrentP1 = 0;
 let dynamicCircuitCurrentP2 = 0;
@@ -32,6 +36,11 @@ class Easee extends utils.Adapter {
     this.on("ready", this.onReady.bind(this));
     this.on("stateChange", this.onStateChange.bind(this));
     this.on("unload", this.onUnload.bind(this));
+
+    //Verwaltung der Retry-/Backoff-Logik der API-Polling-Funktionen
+    this._unloaded = false;
+    this._pendingRetryTimers = new Set();
+    this._retryState = {};
   }
   /**
    * SignalR
@@ -141,22 +150,87 @@ class Easee extends utils.Adapter {
   }
 
   // Clear all Timeouts and inform users
-onUnload(callback) {
-  try {
-    clearTimeout(adapterIntervals.readAllStates);
-    clearTimeout(adapterIntervals.updateDynamicCircuitCurrent);
-    this.log.info("Adapter easee cleaned up everything...");
-    this.setStateAsync("info.connection", false, true).then(() => {
+  onUnload(callback) {
+    try {
+      this._unloaded = true;
+      //Laufende Retry-Wartezeiten sofort auflösen, damit keine Timer nach dem Unload mehr feuern
+      this._pendingRetryTimers.forEach((timer) => {
+        clearTimeout(timer);
+      });
+      this._pendingRetryTimers.clear();
+
+      clearTimeout(adapterIntervals.readAllStates);
+      clearTimeout(adapterIntervals.updateDynamicCircuitCurrent);
+      this.log.info("Adapter easee cleaned up everything...");
+      this.setStateAsync("info.connection", false, true).then(() => {
+        callback();
+      }).catch((err) => {
+        this.log.error("Error setting state: " + err);
+        callback();
+      });
+    } catch (error) {
+      this.log.error("Error during unload: " + error);
       callback();
-    }).catch((err) => {
-      this.log.error("Error setting state: " + err);
-      callback();
-    });
-  } catch (error) {
-    this.log.error("Error during unload: " + error);
-    callback();
+    }
   }
-}
+
+  /**
+   * Wartet die angegebene Zeit, wird beim Unload sofort aufgelöst statt den Adapter offenzuhalten
+   * @param {number} ms
+   */
+  delay(ms) {
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        this._pendingRetryTimers.delete(timer);
+        resolve();
+      }, ms);
+      this._pendingRetryTimers.add(timer);
+    });
+  }
+
+  /**
+   * Führt einen API-Request aus und wiederholt ihn bei einem Fehler automatisch mit exponentiellem Backoff,
+   * statt das Polling für diesen Datenbereich dauerhaft zu stoppen. Nach einem erfolgreichen Request wird
+   * der Backoff wieder zurückgesetzt. Parallele Retries für denselben "label" werden dedupliziert.
+   * @param {string} label Bezeichnet den Datenbereich (z.B. "charger state <id>") für Logging/Dedupe
+   * @param {() => Promise<any>} requestFn führt den eigentlichen axios-Request aus
+   */
+  async requestWithRetry(label, requestFn) {
+    if (!this._retryState[label]) {
+      this._retryState[label] = { inFlight: null };
+    }
+    const state = this._retryState[label];
+
+    //Läuft für dieses Label bereits ein Retry, dessen Ergebnis abwarten statt einen weiteren parallelen Request zu starten
+    if (state.inFlight) {
+      return state.inFlight;
+    }
+
+    state.inFlight = (async () => {
+      let attempt = 0;
+      while (!this._unloaded) {
+        try {
+          return await requestFn();
+        } catch (error) {
+          this.log.error(`Easee API error on ${label} - retry with backoff`);
+          this.log.error(error);
+
+          const backoff = Math.min(RETRY_BASE_DELAY_MS * Math.pow(2, attempt), RETRY_MAX_DELAY_MS);
+          attempt++;
+          this.log.debug(`Waiting ${backoff}ms before retrying ${label}`);
+          await this.delay(backoff);
+        }
+      }
+      return undefined;
+    })();
+
+    try {
+      return await state.inFlight;
+    } finally {
+      state.inFlight = null;
+    }
+  }
+
   /*****************************************************************************************/
   async readAllStates() {
     if (expireTime <= Date.now()) {
@@ -241,16 +315,20 @@ onUnload(callback) {
 
                         //Load site for Charger
                         this.getChargerSite(tmpControl[2]).then((site) => {
+                            if (!site) return;
                             this.log.debug(`Update circuitMaxCurrent to: ${state.val}`);
                             this.log.debug("Get infos from site:");
                             this.log.debug(JSON.stringify(site));
 
                             this.changeMaxCircuitConfig(site.id, site.circuits[0].id, state.val);
                             this.log.debug("Changes sent to API");
+                        }).catch((error) => {
+                            this.log.error(error);
                         });
                     } else if (tmpControl[4] == "dynamicCircuitCurrentP1" || tmpControl[4] == "dynamicCircuitCurrentP2" || tmpControl[4] == "dynamicCircuitCurrentP3") {
 
                         this.getChargerSite(tmpControl[2]).then((site) => {
+                            if (!site) return;
                             this.log.debug(`Update dynamicCircuitCurrent to: ${state.val}`);
                             this.log.debug("Get infos from site:");
                             this.log.debug(JSON.stringify(site));
@@ -278,6 +356,8 @@ onUnload(callback) {
                                 await this.changeCircuitConfig(site.id, site.circuits[0].id);
                             }, 500);
 
+                        }).catch((error) => {
+                            this.log.error(error);
                         });
 
                     } else {
@@ -455,55 +535,47 @@ onUnload(callback) {
 
     // Lese den Charger aus
     async getChargerState(charger_id){
-        return await axios.get(apiUrl + '/api/chargers/' + charger_id +'/state',
-            { headers: {'Authorization' : `Bearer ${accessToken}`}
-            }).then(response => {
-            this.log.debug('Charger status ausgelesen mit id: ' + charger_id);
-            this.log.debug(JSON.stringify(response.data));
-            return response.data;
-        }).catch((error) => {
-            this.log.error(error);
-            throw new Error('Easee API error on charger state - stop refresh');
-        });
+        const response = await this.requestWithRetry('charger state ' + charger_id, () =>
+            axios.get(apiUrl + '/api/chargers/' + charger_id + '/state',
+                { headers: {'Authorization' : `Bearer ${accessToken}`} })
+        );
+        if (!response) return undefined;
+        this.log.debug('Charger status ausgelesen mit id: ' + charger_id);
+        this.log.debug(JSON.stringify(response.data));
+        return response.data;
     }
 
     async getChargerConfig(charger_id){
-        return await axios.get(apiUrl + '/api/chargers/' + charger_id +'/config',
-            { headers: {'Authorization' : `Bearer ${accessToken}`}
-            }).then(response => {
-            this.log.debug('Charger config ausgelesen mit id: ' + charger_id);
-            this.log.debug(JSON.stringify(response.data));
-            return response.data;
-        }).catch((error) => {
-            this.log.error(error);
-            throw new Error('Easee API error on charger config - stop refresh');
-        });
+        const response = await this.requestWithRetry('charger config ' + charger_id, () =>
+            axios.get(apiUrl + '/api/chargers/' + charger_id + '/config',
+                { headers: {'Authorization' : `Bearer ${accessToken}`} })
+        );
+        if (!response) return undefined;
+        this.log.debug('Charger config ausgelesen mit id: ' + charger_id);
+        this.log.debug(JSON.stringify(response.data));
+        return response.data;
     }
 
     async getChargerSite(charger_id){
-        return await axios.get(apiUrl + '/api/chargers/' + charger_id +'/site',
-            { headers: {'Authorization' : `Bearer ${accessToken}`}
-            }).then(response => {
-            this.log.debug('Charger site ausgelesen mit id: ' + charger_id);
-            this.log.debug(JSON.stringify(response.data));
-            return response.data;
-        }).catch((error) => {
-            this.log.error(error);
-            throw new Error('Easee API error on charger site - stop refresh');
-        });
+        const response = await this.requestWithRetry('charger site ' + charger_id, () =>
+            axios.get(apiUrl + '/api/chargers/' + charger_id + '/site',
+                { headers: {'Authorization' : `Bearer ${accessToken}`} })
+        );
+        if (!response) return undefined;
+        this.log.debug('Charger site ausgelesen mit id: ' + charger_id);
+        this.log.debug(JSON.stringify(response.data));
+        return response.data;
     }
 
     async getChargerSession(charger_id){
-        return await axios.get(apiUrl + '/api/sessions/charger/' + charger_id +'/monthly',
-            { headers: {'Authorization' : `Bearer ${accessToken}`}
-            }).then(response => {
-            this.log.debug('Charger session ausgelesen mit id: ' + charger_id);
-            this.log.debug(JSON.stringify(response.data));
-            return response.data;
-        }).catch((error) => {
-            this.log.error(error);
-            throw new Error('Easee API error on charger session - stop refresh');
-        });
+        const response = await this.requestWithRetry('charger session ' + charger_id, () =>
+            axios.get(apiUrl + '/api/sessions/charger/' + charger_id + '/monthly',
+                { headers: {'Authorization' : `Bearer ${accessToken}`} })
+        );
+        if (!response) return undefined;
+        this.log.debug('Charger session ausgelesen mit id: ' + charger_id);
+        this.log.debug(JSON.stringify(response.data));
+        return response.data;
     }
 
     async startCharging(id) {
