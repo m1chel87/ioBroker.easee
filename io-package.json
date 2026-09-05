@@ -1,8 +1,21 @@
 {
     "common": {
         "name": "easee",
-        "version": "1.0.10",
+        "version": "1.0.11",
         "news": {
+            "1.0.11": {
+                "en": "API errors no longer stop polling permanently: failed requests are now retried automatically with exponential backoff",
+                "de": "API-Fehler stoppen das Polling nicht mehr dauerhaft: fehlgeschlagene Anfragen werden jetzt automatisch mit exponentiellem Backoff wiederholt",
+                "ru": "Ошибки API больше не останавливают опрос навсегда: неудачные запросы теперь повторяются автоматически с экспоненциальной задержкой",
+                "pt": "Erros de API não interrompem mais o polling permanentemente: solicitações com falha agora são repetidas automaticamente com backoff exponencial",
+                "nl": "API-fouten stoppen het pollen niet meer permanent: mislukte verzoeken worden nu automatisch opnieuw geprobeerd met exponentiële backoff",
+                "fr": "Les erreurs d'API n'arrêtent plus le polling définitivement : les requêtes échouées sont désormais réessayées automatiquement avec un backoff exponentiel",
+                "it": "Gli errori API non interrompono più il polling in modo permanente: le richieste fallite vengono ora ritentate automaticamente con backoff esponenziale",
+                "es": "Los errores de la API ya no detienen el polling de forma permanente: las solicitudes fallidas ahora se reintentan automáticamente con backoff exponencial",
+                "pl": "Błędy API nie zatrzymują już odpytywania na stałe: nieudane żądania są teraz automatycznie ponawiane z wykładniczym backoffem",
+                "uk": "Помилки API більше не зупиняють опитування назавжди: невдалі запити тепер автоматично повторюються з експоненційною затримкою",
+                "zh-cn": "API 错误不再永久停止轮询：失败的请求现在会以指数退避自动重试"
+            },
             "1.0.10": {
                 "en": "fix version number",
                 "de": "versionsnummer geändert",
