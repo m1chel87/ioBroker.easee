@@ -27,6 +27,61 @@ let dynamicCircuitCurrentP1 = 0;
 let dynamicCircuitCurrentP2 = 0;
 let dynamicCircuitCurrentP3 = 0;
 
+/**
+ * @microsoft/signalr nutzt unter Node.js standardmaessig "fetch-cookie" (tough-cookie) zusammen mit der
+ * nativen Node-fetch-Implementierung (ab Node 18). Dabei kann response.url leer sein, was tough-cookie beim
+ * Setzen von Cookies mit "Cannot read properties of undefined (reading 'secure')" abstuerzen laesst.
+ * Dieser eigene, axios-basierte HttpClient umgeht die fehlerhafte fetch-cookie/tough-cookie-Kette komplett,
+ * da fuer die Easee-Streams-API ohnehin keine Cookies benoetigt werden.
+ */
+class SignalRAxiosHttpClient extends signalR.HttpClient {
+  async send(request) {
+    if (request.abortSignal && request.abortSignal.aborted) {
+      throw new signalR.AbortError();
+    }
+    if (!request.method) {
+      throw new Error("No method defined.");
+    }
+    if (!request.url) {
+      throw new Error("No url defined.");
+    }
+
+    const controller = new AbortController();
+    if (request.abortSignal) {
+      request.abortSignal.onabort = () => controller.abort();
+    }
+
+    let response;
+    try {
+      response = await axios.request({
+        url: request.url,
+        method: request.method,
+        data: request.content === "" ? undefined : request.content,
+        headers: request.headers,
+        timeout: request.timeout,
+        withCredentials: request.withCredentials === true,
+        signal: controller.signal,
+        responseType: request.responseType === "arraybuffer" ? "arraybuffer" : "text",
+        transformResponse: (data) => data,
+        validateStatus: () => true,
+      });
+    } finally {
+      if (request.abortSignal) {
+        request.abortSignal.onabort = null;
+      }
+    }
+
+    if (response.status < 200 || response.status >= 300) {
+      throw new signalR.HttpError(response.statusText || String(response.status), response.status);
+    }
+    return new signalR.HttpResponse(response.status, response.statusText, response.data);
+  }
+
+  getCookieString() {
+    return "";
+  }
+}
+
 class Easee extends utils.Adapter {
   constructor(options) {
     super({
@@ -49,6 +104,7 @@ class Easee extends utils.Adapter {
     const connection = new signalR.HubConnectionBuilder()
       .withUrl("https://streams.easee.com/hubs/chargers", {
         accessTokenFactory: () => accessToken,
+        httpClient: new SignalRAxiosHttpClient(),
       })
       .withAutomaticReconnect()
       .build();
