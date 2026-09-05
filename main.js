@@ -88,12 +88,22 @@ class Easee extends utils.Adapter {
           .send(`SubscribeWithCurrentState`, charger_id, true)
           .then(() => {
             this.log.info(`Charger registrate in SignalR: ${charger_id}`);
+          })
+          .catch((error) => {
+            this.log.error("SignalR subscribe error: " + error);
           });
       });
+    }).catch((error) => {
+      this.log.error("SignalR connection failed - retry with backoff: " + error);
+      if (!this._unloaded) {
+        this.delay(RETRY_BASE_DELAY_MS).then(() => {
+          if (!this._unloaded) this.startSignal();
+        });
+      }
     });
     connection.onclose(() => {
       this.log.error("SignalR Verbindung beendet!!!- restart");
-      this.startSignal();
+      if (!this._unloaded) this.startSignal();
     });
   }
 
@@ -264,6 +274,11 @@ class Easee extends utils.Adapter {
           //Lesen die config
           const tmpChargerConfig = await this.getChargerConfig(charger.id);
 
+          //Kein Ergebnis bedeutet: Adapter wird gerade beendet (Retry wurde abgebrochen) - diese Runde ueberspringen
+          if (!tmpChargerState || !tmpChargerConfig) {
+            return;
+          }
+
           //Setzen die Daten der Charger
           await this.setNewStatusToCharger(charger, tmpChargerState);
 
@@ -275,7 +290,9 @@ class Easee extends utils.Adapter {
             //lesen der Energiedaten
             const tmpChargerSession = await this.getChargerSession(charger.id);
             //setzen die Objekte
-            this.setNewSessionToCharger(charger, tmpChargerSession);
+            if (tmpChargerSession) {
+              this.setNewSessionToCharger(charger, tmpChargerSession);
+            }
           }
         } catch (error) {
           if (typeof error === "string") {
