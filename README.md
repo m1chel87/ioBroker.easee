@@ -35,6 +35,9 @@ dynamicCircuitCurrentPX -> All phases must be set within 500ms (script) otherwis
   Placeholder for the next version (at the beginning of the line):
   ### **WORK IN PROGRESS**
 -->
+### 1.0.11-beta.6
+* API errors (e.g. 404/429/503/504) on the charger state/config/site/session polling no longer stop that polling permanently; failed requests are retried automatically with exponential backoff (start ~30s, cap 5min)
+
 ### 1.0.11-beta.5
 * replace the removed charger state endpoint with the Observations API and prevent SignalR failures from terminating the adapter
 
