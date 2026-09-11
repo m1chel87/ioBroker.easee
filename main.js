@@ -222,7 +222,8 @@ class Easee extends utils.Adapter {
 
   /**
    * Wartet die angegebene Zeit, wird beim Unload sofort aufgelöst statt den Adapter offenzuhalten
-   * @param {number} ms
+   *
+   * @param ms Wartezeit in Millisekunden
    */
   delay(ms) {
     return new Promise((resolve) => {
@@ -238,8 +239,9 @@ class Easee extends utils.Adapter {
    * Führt einen API-Request aus und wiederholt ihn bei einem Fehler automatisch mit exponentiellem Backoff,
    * statt das Polling für diesen Datenbereich dauerhaft zu stoppen. Nach einem erfolgreichen Request wird
    * der Backoff wieder zurückgesetzt. Parallele Retries für denselben "label" werden dedupliziert.
-   * @param {string} label Bezeichnet den Datenbereich (z.B. "charger state <id>") für Logging/Dedupe
-   * @param {() => Promise<any>} requestFn führt den eigentlichen axios-Request aus
+   *
+   * @param label Bezeichnet den Datenbereich (z.B. "charger state <id>") für Logging/Dedupe
+   * @param requestFn führt den eigentlichen axios-Request aus
    */
   async requestWithRetry(label, requestFn) {
     if (!this._retryState[label]) {
@@ -261,7 +263,10 @@ class Easee extends utils.Adapter {
           this.log.error(`Easee API error on ${label} - retry with backoff`);
           this.log.error(errorMessage(error));
 
-          const backoff = Math.min(RETRY_BASE_DELAY_MS * Math.pow(2, attempt), RETRY_MAX_DELAY_MS);
+          const backoff = Math.min(
+            RETRY_BASE_DELAY_MS * Math.pow(2, attempt),
+            RETRY_MAX_DELAY_MS,
+          );
           attempt++;
           this.log.debug(`Waiting ${backoff}ms before retrying ${label}`);
           await this.delay(backoff);
@@ -375,7 +380,7 @@ class Easee extends utils.Adapter {
 
                         //Load site for Charger
                         this.getChargerSite(tmpControl[2]).then((site) => {
-                            if (!site) return;
+                            if (!site) { return; }
                             this.log.debug(`Update circuitMaxCurrent to: ${state.val}`);
                             this.log.debug("Get infos from site:");
                             this.log.debug(JSON.stringify(site));
@@ -388,7 +393,7 @@ class Easee extends utils.Adapter {
                     } else if (tmpControl[4] == "dynamicCircuitCurrentP1" || tmpControl[4] == "dynamicCircuitCurrentP2" || tmpControl[4] == "dynamicCircuitCurrentP3") {
 
                         this.getChargerSite(tmpControl[2]).then((site) => {
-                            if (!site) return;
+                            if (!site) { return; }
                             this.log.debug(`Update dynamicCircuitCurrent to: ${state.val}`);
                             this.log.debug("Get infos from site:");
                             this.log.debug(JSON.stringify(site));
@@ -606,48 +611,59 @@ class Easee extends utils.Adapter {
     }
 
     // Lese den Charger aus
-    async getChargerState(charger_id){
-        const response = await this.requestWithRetry('charger state ' + charger_id, () =>
-            axios.get(apiUrl + '/state/' + charger_id + '/observations', {
-                headers: {'Authorization' : `Bearer ${accessToken}`},
-                params: {ids: CHARGER_STATE_OBSERVATION_IDS.join(',')}
-            })
+    async getChargerState(charger_id) {
+        const response = await this.requestWithRetry(`charger state ${charger_id}`, () =>
+            axios.get(`${apiUrl}/state/${charger_id}/observations`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                params: { ids: CHARGER_STATE_OBSERVATION_IDS.join(",") },
+            }),
         );
-        if (!response) return undefined;
-        this.log.debug('Charger observations ausgelesen mit id: ' + charger_id);
+        if (!response) {
+            return undefined;
+        }
+        this.log.debug(`Charger observations ausgelesen mit id: ${charger_id}`);
         this.log.debug(JSON.stringify(response.data));
         return observationsToChargerState(response.data);
     }
 
-    async getChargerConfig(charger_id){
-        const response = await this.requestWithRetry('charger config ' + charger_id, () =>
-            axios.get(apiUrl + '/api/chargers/' + charger_id + '/config',
-                { headers: {'Authorization' : `Bearer ${accessToken}`} })
+    async getChargerConfig(charger_id) {
+        const response = await this.requestWithRetry(`charger config ${charger_id}`, () =>
+            axios.get(`${apiUrl}/api/chargers/${charger_id}/config`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            }),
         );
-        if (!response) return undefined;
-        this.log.debug('Charger config ausgelesen mit id: ' + charger_id);
+        if (!response) {
+            return undefined;
+        }
+        this.log.debug(`Charger config ausgelesen mit id: ${charger_id}`);
         this.log.debug(JSON.stringify(response.data));
         return response.data;
     }
 
-    async getChargerSite(charger_id){
-        const response = await this.requestWithRetry('charger site ' + charger_id, () =>
-            axios.get(apiUrl + '/api/chargers/' + charger_id + '/site',
-                { headers: {'Authorization' : `Bearer ${accessToken}`} })
+    async getChargerSite(charger_id) {
+        const response = await this.requestWithRetry(`charger site ${charger_id}`, () =>
+            axios.get(`${apiUrl}/api/chargers/${charger_id}/site`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            }),
         );
-        if (!response) return undefined;
-        this.log.debug('Charger site ausgelesen mit id: ' + charger_id);
+        if (!response) {
+            return undefined;
+        }
+        this.log.debug(`Charger site ausgelesen mit id: ${charger_id}`);
         this.log.debug(JSON.stringify(response.data));
         return response.data;
     }
 
-    async getChargerSession(charger_id){
-        const response = await this.requestWithRetry('charger session ' + charger_id, () =>
-            axios.get(apiUrl + '/api/sessions/charger/' + charger_id + '/monthly',
-                { headers: {'Authorization' : `Bearer ${accessToken}`} })
+    async getChargerSession(charger_id) {
+        const response = await this.requestWithRetry(`charger session ${charger_id}`, () =>
+            axios.get(`${apiUrl}/api/sessions/charger/${charger_id}/monthly`, {
+                headers: { Authorization: `Bearer ${accessToken}` },
+            }),
         );
-        if (!response) return undefined;
-        this.log.debug('Charger session ausgelesen mit id: ' + charger_id);
+        if (!response) {
+            return undefined;
+        }
+        this.log.debug(`Charger session ausgelesen mit id: ${charger_id}`);
         this.log.debug(JSON.stringify(response.data));
         return response.data;
     }
