@@ -380,7 +380,9 @@ class Easee extends utils.Adapter {
 
                         //Load site for Charger
                         this.getChargerSite(tmpControl[2]).then((site) => {
-                            if (!site) { return; }
+                            if (!site) {
+                                return;
+                            }
                             this.log.debug(`Update circuitMaxCurrent to: ${state.val}`);
                             this.log.debug("Get infos from site:");
                             this.log.debug(JSON.stringify(site));
@@ -393,7 +395,9 @@ class Easee extends utils.Adapter {
                     } else if (tmpControl[4] == "dynamicCircuitCurrentP1" || tmpControl[4] == "dynamicCircuitCurrentP2" || tmpControl[4] == "dynamicCircuitCurrentP3") {
 
                         this.getChargerSite(tmpControl[2]).then((site) => {
-                            if (!site) { return; }
+                            if (!site) {
+                                return;
+                            }
                             this.log.debug(`Update dynamicCircuitCurrent to: ${state.val}`);
                             this.log.debug("Get infos from site:");
                             this.log.debug(JSON.stringify(site));
