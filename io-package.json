@@ -1,8 +1,12 @@
 {
     "common": {
         "name": "easee",
-        "version": "1.0.11-beta.6",
+        "version": "1.0.11-beta.7",
         "news": {
+            "1.0.11-beta.7": {
+                "en": "Read the ID token of a scanned RFID chip via SignalR into the new state status.userIdToken",
+                "de": "ID-Token eines gescannten RFID-Chips wird per SignalR in den neuen State status.userIdToken geschrieben"
+            },
             "1.0.11-beta.6": {
                 "en": "API errors no longer stop polling permanently: failed requests are now retried automatically with exponential backoff",
                 "de": "API-Fehler stoppen das Polling nicht mehr dauerhaft: fehlgeschlagene Anfragen werden jetzt automatisch mit exponentiellem Backoff wiederholt"

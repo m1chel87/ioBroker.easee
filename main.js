@@ -32,6 +32,17 @@ function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
 }
 
+// Reverses the byte order of a hex string (pairs of 2 chars), needed for
+// OBSERVATION_USER_IDTOKEN_REVERSED (id 108) on older charger firmware so
+// the value matches OBSERVATION_USER_IDTOKEN (id 128) / the Easee app display.
+function reverseHexByteOrder(hexString) {
+  if (typeof hexString !== "string" || hexString.length % 2 !== 0) {
+    return hexString;
+  }
+  const bytes = hexString.match(/.{2}/g) || [];
+  return bytes.reverse().join("");
+}
+
 //Variable für dynamicCircuitCurrentPX
 let dynamicCircuitCurrentP1 = 0;
 let dynamicCircuitCurrentP2 = 0;
@@ -78,6 +89,9 @@ class Easee extends utils.Adapter {
       } else {
         //Value is in ioBroker, update it
         const tmpValueId = data.mid + data_name;
+        if (data.id === 108) {
+          data.value = reverseHexByteOrder(data.value);
+        }
         this.log.debug(
           `New value over SignalR for: ${tmpValueId}, value: ${data.value}`,
         );
@@ -1274,6 +1288,19 @@ class Easee extends utils.Adapter {
                 name: 'SignaleR only: Maximum temperature for all sensors [Celsius]',
                 type: 'number',
                 role: 'value.temperature.max',
+                read: true,
+                write: false,
+            },
+            native: {},
+        });
+
+        //userIdToken (RFID)
+        await this.setObjectNotExistsAsync(charger.id + '.status.userIdToken', {
+            type: 'state',
+            common: {
+                name: 'SignalR only: ID token of the last RFID chip read by the charger',
+                type: 'string',
+                role: 'value',
                 read: true,
                 write: false,
             },

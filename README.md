@@ -35,6 +35,9 @@ dynamicCircuitCurrentPX -> All phases must be set within 500ms (script) otherwis
   Placeholder for the next version (at the beginning of the line):
   ### **WORK IN PROGRESS**
 -->
+### 1.0.11-beta.7
+* the ID token of a scanned RFID chip is now read via SignalR into the new state `status.userIdToken` (byte-reversed variant from older firmware is normalized to match)
+
 ### 1.0.11-beta.6
 * API errors (e.g. 404/429/503/504) on the charger state/config/site/session polling no longer stop that polling permanently; failed requests are retried automatically with exponential backoff (start ~30s, cap 5min)
 
