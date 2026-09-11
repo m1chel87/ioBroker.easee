@@ -1,8 +1,12 @@
 {
     "common": {
         "name": "easee",
-        "version": "1.0.11-beta.7",
+        "version": "1.0.11-beta.8",
         "news": {
+            "1.0.11-beta.8": {
+                "en": "Add RFID Tags section in adapter settings to assign names to RFID chip tokens; the resolved name is written to the new state status.userIdTokenName",
+                "de": "Neuer Bereich \"RFID-Chips\" in den Adaptereinstellungen zur Namensvergabe für RFID-Chip-Tokens; der aufgelöste Name wird in den neuen State status.userIdTokenName geschrieben"
+            },
             "1.0.11-beta.7": {
                 "en": "Read the ID token of a scanned RFID chip via SignalR into the new state status.userIdToken",
                 "de": "ID-Token eines gescannten RFID-Chips wird per SignalR in den neuen State status.userIdToken geschrieben"
@@ -117,7 +121,8 @@
         "client_secret": "",
         "polltime": 30,
         "signalR": false,
-        "logtype": false
+        "logtype": false,
+        "rfidTags": []
     },
     "objects": [],
     "instanceObjects": [

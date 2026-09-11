@@ -113,6 +113,20 @@ class Easee extends utils.Adapter {
               `SignalR state update failed: ${errorMessage(error)}`,
             ),
         );
+
+        if (data.id === 108 || data.id === 128) {
+          const tagName =
+            this.rfidTagNames.get(String(data.value).trim().toUpperCase()) ||
+            "";
+          this.setStateAsync(data.mid + ".status.userIdTokenName", {
+            val: tagName,
+            ack: true,
+          }).catch((error) =>
+            this.log.warn(
+              `SignalR state update failed: ${errorMessage(error)}`,
+            ),
+          );
+        }
       }
     });
 
@@ -169,6 +183,14 @@ class Easee extends utils.Adapter {
       polltime = this.config.polltime;
     }
     logtype = this.config.logtype;
+
+    //RFID-Tag-Namen aus der Adapterkonfiguration in eine Lookup-Map laden
+    this.rfidTagNames = new Map();
+    for (const tag of this.config.rfidTags || []) {
+      if (tag && tag.token) {
+        this.rfidTagNames.set(String(tag.token).trim().toUpperCase(), tag.name || "");
+      }
+    }
     // Testen ob der Login funktioniert
     if (this.config.username == "" || this.config.username == "+49") {
       this.log.error("No username set");
@@ -1299,6 +1321,19 @@ class Easee extends utils.Adapter {
             type: 'state',
             common: {
                 name: 'SignalR only: ID token of the last RFID chip read by the charger',
+                type: 'string',
+                role: 'value',
+                read: true,
+                write: false,
+            },
+            native: {},
+        });
+
+        //userIdTokenName (aus der Adapterkonfiguration aufgelöster Name des RFID-Chips)
+        await this.setObjectNotExistsAsync(charger.id + '.status.userIdTokenName', {
+            type: 'state',
+            common: {
+                name: 'SignalR only: Name assigned to the last RFID chip read (see adapter settings)',
                 type: 'string',
                 role: 'value',
                 read: true,

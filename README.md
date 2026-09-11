@@ -35,6 +35,9 @@ dynamicCircuitCurrentPX -> All phases must be set within 500ms (script) otherwis
   Placeholder for the next version (at the beginning of the line):
   ### **WORK IN PROGRESS**
 -->
+### 1.0.11-beta.8
+* new "RFID Tags" section in the adapter settings to assign a name to each RFID chip token; the resolved name is written to the new state `status.userIdTokenName`
+
 ### 1.0.11-beta.7
 * the ID token of a scanned RFID chip is now read via SignalR into the new state `status.userIdToken` (byte-reversed variant from older firmware is normalized to match)
 
